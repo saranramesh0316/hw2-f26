@@ -32,13 +32,49 @@ const StarDeco = ({ className }: {className?: string;}) =>
 
 const ArrowDeco = ({ className }: {className?: string;}) =>
 <svg className={className} width="28" height="16" viewBox="0 0 28 16" fill="currentColor">
-    <path d="M0 8L6 2V6H22V2L28 8L22 14V10H6V14L0 8Z" />
+    <path d="M0 8L6 2V5H22V2L28 8L22 14V11H6V14L0 8Z" />
   </svg>;
 
 
+const TypeWriter = ({ text, delay = 0, speed = 80 }: { text: string; delay?: number; speed?: number }) => {
+  const [displayed, setDisplayed] = useState("");
+  const [started, setStarted] = useState(false);
+  const [done, setDone] = useState(false);
+  const prefersReducedMotion = typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  useEffect(() => {
+    if (prefersReducedMotion) {
+      setDisplayed(text);
+      setDone(true);
+      return;
+    }
+    const startTimer = setTimeout(() => setStarted(true), delay);
+    return () => clearTimeout(startTimer);
+  }, [delay, prefersReducedMotion, text]);
+
+  useEffect(() => {
+    if (!started || prefersReducedMotion) return;
+    if (displayed.length >= text.length) {
+      setDone(true);
+      return;
+    }
+    const timer = setTimeout(() => {
+      setDisplayed(text.slice(0, displayed.length + 1));
+    }, speed + Math.random() * 25);
+    return () => clearTimeout(timer);
+  }, [started, displayed, text, speed, prefersReducedMotion]);
+
+  return (
+    <>
+      {prefersReducedMotion ? text : displayed}
+      {started && !done && <span className="inline-block w-[3px] h-[0.85em] bg-current align-baseline ml-[2px] animate-blink" />}
+    </>
+  );
+};
+
 const SCORE_MAX = 50;
 
-const Hero = () => {
+const Hero = ({ onScored }: { onScored?: (scored: boolean) => void }) => {
   const isMobile = useIsMobile();
   const { theme, setTheme } = useTheme();
   const sectionRef = useRef<HTMLElement>(null);
@@ -65,6 +101,8 @@ const Hero = () => {
 
   const scored = slideCount >= SCORE_MAX;
   const showScore = slideCount >= 3;
+
+  useEffect(() => { onScored?.(scored); }, [scored, onScored]);
 
   const playWin = () => {
     try {
@@ -124,8 +162,6 @@ const Hero = () => {
 
   return (
     <section ref={sectionRef} className="min-h-screen flex flex-col justify-between px-6 md:px-12 lg:px-20 pt-8 pb-12 relative overflow-hidden">
-      {/* Decorative grid background */}
-      <div className="absolute inset-0 grid-bg opacity-60 pointer-events-none" />
 
       {/* S monogram decoration */}
       <SMonogram className="hidden lg:block absolute right-[2%] top-[34%] w-[160px] opacity-70 pointer-events-none" />
@@ -137,7 +173,7 @@ const Hero = () => {
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="flex items-center justify-end font-mono text-xs uppercase tracking-widest text-muted-foreground relative z-10">
+        className="flex items-center justify-end font-body text-xs uppercase tracking-widest text-muted-foreground relative z-10">
 
         <div className="flex items-center gap-3">
           <ThemeToggle />
@@ -146,15 +182,14 @@ const Hero = () => {
 
       {/* Main headline */}
       <div className="flex-1 flex flex-col justify-center py-16 md:py-24 relative z-10">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.8, rotate: -3 }}
-          animate={{ opacity: 1, scale: 1, rotate: 0 }}
-          transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1], delay: 0.2 }}>
-
+        <div>
           <h1 className="font-display font-extrabold text-5xl sm:text-7xl md:text-8xl lg:text-[7rem] leading-[0.95] tracking-tight max-w-5xl text-foreground">
-            Saran <span className={`transition-colors duration-700 ${scored ? "text-accent" : "text-primary"}`}>Ramesh</span>
+            <TypeWriter text="Saran " delay={170} speed={75} />
+            <span className={`transition-colors duration-700 ${scored ? "text-accent" : "text-primary"}`}>
+              <TypeWriter text="Ramesh" delay={630} speed={75} />
+            </span>
           </h1>
-        </motion.div>
+        </div>
 
         <motion.div
           initial={{ opacity: 0, y: 10 }}
@@ -166,33 +201,27 @@ const Hero = () => {
             animate={wiggleControls}
             whileHover={!isMobile ? { rotate: [0, -4, 4, -3, 3, 0], transition: { duration: 0.4 } } : undefined}
             onTap={isMobile ? () => wiggleControls.start({ rotate: [0, -4, 4, -3, 3, 0], transition: { duration: 0.4 } }) : undefined}>
-            Product Builder
+            Product Designer & Builder
           </motion.div>
         </motion.div>
 
         {/* Colorful divider */}
-        <motion.div
-          initial={{ scaleX: 0 }}
-          animate={{ scaleX: 1 }}
-          transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1], delay: 0.6 }}
-          className="flex items-center gap-0 my-8 md:my-10 origin-left max-w-3xl">
-
-          <div className={`h-[4px] flex-1 rounded-full transition-colors duration-700 ${scored ? "bg-accent" : "bg-primary"}`} />
-          <div className={`h-[4px] w-12 rounded-full transition-colors duration-700 ${scored ? "bg-accent" : "bg-accent"}`} />
-        </motion.div>
+        <div className="flex items-center gap-0 my-8 md:my-10 max-w-3xl">
+          <div className={`h-[4px] w-full rounded-full transition-colors duration-700 ${scored ? "bg-accent" : "bg-primary"}`} />
+        </div>
 
         <div className="relative">
           {/* Score counter */}
           {showScore && !isMobile && (
             <div className="absolute -top-8 left-0 flex items-center gap-2 z-20">
-              <span className="font-mono text-xs uppercase tracking-widest text-muted-foreground">
+              <span className="font-body text-xs uppercase tracking-widest text-muted-foreground">
                 {cheated ? "🤨 you cheated." : scored ? "🎉 max score!" : (
                   <>
                     {"score: "}
                     {editingScore ? (
                       <input
                         autoFocus
-                        className="font-mono text-xs uppercase tracking-widest bg-transparent border-b border-primary/50 outline-none w-7 text-center text-foreground"
+                        className="font-body text-xs uppercase tracking-widest bg-transparent border-b border-primary/50 outline-none w-7 text-center text-foreground"
                         value={editValue}
                         onChange={(e) => setEditValue(e.target.value.replace(/[^0-9]/g, ""))}
                         onBlur={() => {
@@ -229,7 +258,7 @@ const Hero = () => {
                   initial={{ opacity: 1, y: 0 }}
                   animate={{ opacity: 0, y: -12 }}
                   transition={{ duration: 0.5 }}
-                  className="font-mono text-xs font-bold text-accent"
+                  className="font-body text-xs font-bold text-accent"
                 >
                   +1
                 </motion.span>
@@ -274,15 +303,12 @@ const Hero = () => {
               if (next === 10 || next === 25 || next === SCORE_MAX) track("drag_milestone", { score: next });
             }
           }}
-          className="card-playful max-w-2xl grid-bg select-none">
+          className="card-playful max-w-2xl select-none">
 
           {/* Little sticker on card */}
           <div className="absolute -top-3 -right-2 rotate-6">
 
           </div>
-          <p className="font-mono text-xs font-semibold tracking-widest text-muted-foreground uppercase mb-2">
-            Product & Brand Designer
-          </p>
           <p className="font-display font-bold text-2xl sm:text-3xl md:text-4xl text-foreground leading-[1.2] mb-3">
             Taking products from
             <span className="bg-accent/30 px-2 py-0.5 rounded-md ml-2">feeling</span> to
@@ -319,7 +345,7 @@ const Hero = () => {
         transition={{ duration: 0.6, delay: 1.2 }}
         className="relative z-10">
 
-        <p className="font-mono text-sm uppercase tracking-[0.2em] text-muted-foreground mb-4 flex items-center gap-2">
+        <p className="font-body text-sm uppercase tracking-[0.2em] text-muted-foreground mb-4 flex items-center gap-2">
           Ships with
         </p>
         <div className="flex flex-wrap items-center gap-4">
@@ -337,7 +363,7 @@ const Hero = () => {
               className={`w-4 h-4 opacity-70 group-hover:opacity-100 transition-opacity duration-300${(tool as any).darkInvert ? " dark:invert" : ""}${(tool as any).mono ? " brightness-0 dark:invert" : ""}`}
               loading="lazy" />
 
-              <span className="font-mono text-sm font-medium text-foreground/70 group-hover:text-foreground transition-colors duration-300">
+              <span className="font-mono text-sm font-medium text-foreground/85 group-hover:text-foreground transition-colors duration-300">
                 {tool.name}
               </span>
             </motion.div>
@@ -349,8 +375,8 @@ const Hero = () => {
             transition={{ duration: 0.4, delay: 1.4 + TOOLS.length * 0.06 }}
             className="flex items-center gap-2 bg-card border-2 border-foreground/10 rounded-full px-3 py-1.5 hover:border-primary/40 hover:shadow-md transition-all duration-300 group">
 
-            <span className="font-bold text-sm">♥</span>
-            <span className="font-mono text-sm font-medium text-foreground/70 group-hover:text-foreground transition-colors duration-300">
+            <img src="https://cdn.simpleicons.org/lovable/black" alt="Lovable" className="w-4 h-4 dark:invert" loading="lazy" />
+            <span className="font-mono text-sm font-medium text-foreground/85 group-hover:text-foreground transition-colors duration-300">
               Lovable
             </span>
           </motion.div>
